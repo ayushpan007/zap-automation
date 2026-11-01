@@ -85,3 +85,14 @@ Short records of the choices worth defending. Newest last.
 - Both apps use Vitest (Angular 22's default runner), so there is one framework.
 - Server: pure unit tests plus API tests via supertest against a real local MongoDB test database (`zaps_test`), with GitHub faked. This tests indexes and duplicate-key behaviour for real.
 - Client: pure helpers, list states and toggle failure, and the guard.
+
+## D17 — Copilot: Claude drafts, the server validates, the user saves
+**Decision:** `POST /api/copilot/draft` sends the user's text plus their admin repo names to Claude (`claude-opus-5-5`, low effort) with a structured-output schema (`supported`, `explanation`, `name`, `commentBody`, `repoFullName`). The server then treats the answer as untrusted input: unsupported requests become a 400 with the model's explanation, unknown `{{tokens}}` are rejected by the same rule as the Zap API (D12), and the repo is kept only if it is in the user's admin list. The draft is **not saved**. The client passes it to the builder in router navigation state, switched off.
+**Why:**
+- Structured output means no JSON parsing of free text. Validation after it means a confused or manipulated model can't produce a Zap the API would reject or point at someone else's repo.
+- Not saving keeps the "review, then turn it on" step real and avoids half-finished drafts in the database.
+- `CopilotModel` is injected like the GitHub client (D3), so tests use a fake and never call the paid API.
+- Optional by config: without `ANTHROPIC_API_KEY` the route answers 503 and the rest of the app is unaffected.
+- `fallbacks: "default"` lets the API retry a safety-classifier refusal on a recommended model instead of failing.
+**Alternatives:** Save drafts as disabled Zaps (simpler hand-off, but leaves clutter and needs a repo up front). Tool use instead of structured output (more moving parts for a one-shot extraction). Calling Claude from the browser (would expose the API key).
+**Trade-offs:** A draft is lost on page reload. Each call costs money, so it has its own rate limit (10/min). The model can still misread intent; the review step is the safeguard.

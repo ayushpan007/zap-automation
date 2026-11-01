@@ -2,7 +2,7 @@
 
 A small workflow-automation app in the spirit of Zapier's Zaps: **a trigger plus an action**.
 Users sign in with GitHub and create a Zap such as _"when a pull request is opened in `owner/repo`, comment on it"_.
-Opening a real PR makes the comment appear.
+Opening a real PR makes the comment appear. A **Copilot** can also draft a Zap from plain English (_"when a PR is opened, comment thanks"_) for you to review and turn on.
 
 TypeScript throughout, on the MEAN stack: **MongoDB · Express 5 · Angular 22 · Node 22**.
 
@@ -44,6 +44,8 @@ cp .env.example .env
 
 Fill in `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` and `PUBLIC_URL` (the ngrok URL). Generate the other secrets as described in `.env.example`.
 
+Optional: set `ANTHROPIC_API_KEY` ([console.anthropic.com](https://console.anthropic.com)) to enable the Copilot. Without it the app runs normally and the Copilot box explains that it isn't set up. On startup the server logs `Copilot enabled` or `disabled`.
+
 ### 4. Install and run (two terminals)
 
 ```bash
@@ -57,6 +59,13 @@ cd client && npm install && npm start       # http://localhost:4200
 2. **New Zap** → pick a repository you administer → edit the comment → turn it on → **Create and turn on**.
    - This adds a webhook to that repository. You'll see it under the repo's Settings → Webhooks.
 3. Open a pull request in that repository. Within a few seconds the comment appears, and the run shows up under **Recent runs**.
+
+### 6. Try the Copilot (optional)
+
+1. On the Zaps page, type into **Describe a Zap**, for example _"When a pull request is opened on owner/repo, comment thanks"_, and click **Draft Zap**.
+2. The builder opens pre-filled (name, comment, and the repo if you named one you administer), switched **off**. Nothing is saved yet.
+3. Review it, then **Create Zap** and turn it on as usual.
+4. Ask for something the app can't run (_"post to Slack"_) and you get an explanation instead of a draft.
 
 > If ngrok restarts with a new URL, update `PUBLIC_URL`, then turn the Zap off and on again so the webhook points at the new URL.
 
@@ -84,6 +93,7 @@ GitHub ──POST /webhooks/github (via ngrok, HMAC-signed)──┘   └──
 1. **Sign in:** `/auth/github` redirects to GitHub. On callback, the code is exchanged for a token, the user is upserted (token encrypted at rest), and a session cookie is set (httpOnly JWT).
 2. **Turn a Zap on:** the server checks that the user is an admin of the repo, then creates one webhook per repo.
 3. **PR opened:** GitHub posts to `/webhooks/github`. The server verifies the signature, finds enabled Zaps for that repo, records a run (a unique index makes redeliveries no-ops), renders the template, and posts the comment with the Zap owner's token.
+4. **Copilot:** `POST /api/copilot/draft` sends the text and the user's admin repos to Claude (`claude-opus-5-5`, structured output). The server validates the answer like user input (supported pair, known `{{tokens}}`, repo the user administers) and returns a draft without saving it. The client opens it in the builder for review.
 
 Diagrams are in [`CLAUDE.md`](CLAUDE.md). The reasons behind each choice are in [`docs/DECISIONS.md`](docs/DECISIONS.md).
 
@@ -100,6 +110,7 @@ Diagrams are in [`CLAUDE.md`](CLAUDE.md). The reasons behind each choice are in 
 | GET / POST           | `/api/zaps`             | session         | List / create own Zaps                         |
 | GET / PATCH / DELETE | `/api/zaps/:id`         | session + owner | Read / edit (incl. on/off) / delete            |
 | GET                  | `/api/zaps/:id/runs`    | session + owner | Last 20 runs                                   |
+| POST                 | `/api/copilot/draft`    | session         | Text → draft Zap (not saved; 10/min)           |
 | POST                 | `/webhooks/github`      | HMAC signature  | GitHub deliveries                              |
 
 Errors are always `{ "error": { "code", "message", "details?" } }`.
@@ -126,11 +137,12 @@ server/src/
     webhooks/                receiver, signature check, PR event parsing, repo-hook lifecycle
     github/                  REST client (the GitHub side-effect boundary)
     catalog/                 app picker data
+    copilot/                 Claude boundary (model), prompt + output schema, draft validation
     runs/, users/            models
   lib/                       pure helpers: template rendering, crypto
 client/src/app/
   core/                      API service, auth state, guard, interceptor, types
-  features/                  login, zaps (list, editor, picker, comment editor, run history)
+  features/                  login, zaps (list, Copilot box, editor, picker, comment editor, run history)
   shared/                    toggle, pure helpers
 ```
 
@@ -145,4 +157,5 @@ client/src/app/
 - A webhook deleted by hand on GitHub isn't recreated automatically. Toggle the Zap off and on to add it back.
 - The repository picker shows the first 100 repos you admin (no pagination).
 - `trust proxy` is set to one hop for running behind a tunnel or load balancer. Without a proxy in front, the rate limiter could be bypassed with a spoofed `X-Forwarded-For`.
-- The bonus Copilot (natural language → draft Zap) was not built.
+- Copilot drafts only the one runnable pair. A draft lives in router state, so reloading the builder drops it; it is never saved until you click save.
+- Each Copilot call is a paid API request. It's rate-limited (10 per minute per IP) but has no per-user quota.
