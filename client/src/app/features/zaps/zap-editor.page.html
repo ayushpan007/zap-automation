@@ -22,6 +22,13 @@
   @default {
     <form class="layout" [formGroup]="form" (ngSubmit)="save()" novalidate>
       <div class="steps">
+        @if (draft; as d) {
+          <p class="banner banner-copilot" role="status">
+            <strong>Drafted by Copilot.</strong> {{ d.explanation }}
+            Review each step{{ d.repo ? '' : ', choose a repository' }}, then save. It stays off until you turn it on.
+          </p>
+        }
+
         <section class="step" aria-labelledby="step-trigger">
           <header class="step-head">
             <span class="step-num" aria-hidden="true">1</span>

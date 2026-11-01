@@ -43,7 +43,7 @@ describe('ZapListPage', () => {
     http.expectOne('/api/zaps').flush({}, { status: 500, statusText: 'err' });
     await fixture.whenStable();
     expect(el.textContent).toContain("couldn't be loaded");
-    (el.querySelector('button') as HTMLButtonElement).click();
+    (el.querySelector('.placeholder button') as HTMLButtonElement).click();
     http.expectOne('/api/zaps').flush({ zaps: [zap] });
     await fixture.whenStable();
     expect(el.textContent).toContain('Thank authors');

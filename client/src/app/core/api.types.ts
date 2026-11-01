@@ -59,6 +59,14 @@ export interface Run {
   createdAt: string;
 }
 
+/** POST /api/copilot/draft. Never saved by the server: the editor shows it for review. */
+export interface ZapDraft {
+  name: string;
+  body: string;
+  repo: RepoRef | null;
+  explanation: string;
+}
+
 export interface ApiErrorBody {
   error: { code: string; message: string; details?: { path: string[]; message: string }[] };
 }
