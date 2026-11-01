@@ -1,0 +1,74 @@
+<header class="head">
+  <div>
+    <h1>Zaps</h1>
+    <p class="sub">Each Zap watches one repository and acts when a pull request opens.</p>
+  </div>
+  <a routerLink="/zaps/new" class="btn btn-primary">New Zap</a>
+</header>
+
+@if (actionError(); as message) {
+  <p class="banner banner-error" role="alert">{{ message }}</p>
+}
+
+@switch (state()) {
+  @case ('loading') {
+    <p class="placeholder" aria-live="polite">Loading your Zaps…</p>
+  }
+  @case ('error') {
+    <div class="placeholder" role="alert">
+      <p>Your Zaps couldn't be loaded.</p>
+      <button type="button" class="btn" (click)="load()">Try again</button>
+    </div>
+  }
+  @case ('ready') {
+    @if (zaps().length === 0) {
+      <div class="empty">
+        <h2>No Zaps yet</h2>
+        <p>
+          Create one to comment on new pull requests automatically — for example, thanking first-time
+          contributors or linking your review checklist.
+        </p>
+        <a routerLink="/zaps/new" class="btn btn-primary">Create your first Zap</a>
+      </div>
+    } @else {
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Workflow</th>
+              <th scope="col">Repository</th>
+              <th scope="col">Updated</th>
+              <th scope="col" class="col-status">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (zap of zaps(); track zap.id) {
+              <tr>
+                <td>
+                  <a [routerLink]="['/zaps', zap.id]" class="name">{{ zap.name }}</a>
+                </td>
+                <td class="workflow">
+                  <span>PR opened</span>
+                  <span class="arrow" aria-label="then">→</span>
+                  <span>Comment on PR</span>
+                </td>
+                <td class="mono repo">{{ zap.trigger.repo.fullName }}</td>
+                <td class="muted">{{ relativeTime(zap.updatedAt, now) }}</td>
+                <td class="col-status">
+                  <span class="status" [class.status-on]="zap.enabled">{{ zap.enabled ? 'On' : 'Off' }}</span>
+                  <app-toggle
+                    [checked]="zap.enabled"
+                    [busy]="pendingIds().has(zap.id)"
+                    [label]="(zap.enabled ? 'Turn off ' : 'Turn on ') + zap.name"
+                    (toggled)="setEnabled(zap, $event)"
+                  />
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+}

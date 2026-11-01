@@ -1,0 +1,184 @@
+<nav class="crumbs" aria-label="Breadcrumb">
+  <a routerLink="/zaps">Zaps</a>
+  <span aria-hidden="true">/</span>
+  <span aria-current="page">{{ isNew() ? 'New Zap' : form.controls.name.value || 'Untitled' }}</span>
+</nav>
+
+@switch (loadState()) {
+  @case ('loading') {
+    <p class="placeholder" aria-live="polite">Loading…</p>
+  }
+  @case ('not-found') {
+    <div class="placeholder" role="alert">
+      <p>This Zap doesn't exist, or it belongs to someone else.</p>
+      <a routerLink="/zaps" class="btn">Back to Zaps</a>
+    </div>
+  }
+  @case ('error') {
+    <div class="placeholder" role="alert">
+      <p>The builder couldn't load. Check that the server is running, then reload.</p>
+    </div>
+  }
+  @default {
+    <form class="layout" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <div class="steps">
+        <section class="step" aria-labelledby="step-trigger">
+          <header class="step-head">
+            <span class="step-num" aria-hidden="true">1</span>
+            <div>
+              <h2 id="step-trigger">Trigger</h2>
+              <p class="hint">When this happens…</p>
+            </div>
+          </header>
+
+          <div class="step-body">
+            <div class="field">
+              <span class="label">App</span>
+              <app-app-picker
+                [apps]="apps()"
+                step="trigger"
+                label="Trigger app"
+                [selected]="triggerApp()"
+                (selectedChange)="triggerApp.set($event)"
+              />
+            </div>
+
+            <div class="row">
+              <div class="field">
+                <label for="trigger-event">Event</label>
+                <select id="trigger-event" class="select" disabled>
+                  <option>{{ trigger()?.name ?? 'Pull request opened' }}</option>
+                </select>
+                <p class="hint">{{ trigger()?.description }}</p>
+              </div>
+
+              <div class="field">
+                <label for="trigger-repo">Repository</label>
+                <select
+                  id="trigger-repo"
+                  class="select mono"
+                  formControlName="repoId"
+                  [attr.aria-invalid]="submitted() && form.controls.repoId.invalid"
+                  aria-describedby="repo-help"
+                >
+                  <option [ngValue]="null" disabled>Choose a repository</option>
+                  @for (repo of repos(); track repo.id) {
+                    <option [ngValue]="repo.id">{{ repoLabel(repo) }}</option>
+                  }
+                </select>
+                @if (reposError(); as message) {
+                  <p class="error-text" id="repo-help">
+                    {{ message }} <button type="button" class="link-btn" (click)="loadRepos()">Retry</button>
+                  </p>
+                } @else if (submitted() && form.controls.repoId.invalid) {
+                  <p class="error-text" id="repo-help">Choose the repository to watch.</p>
+                } @else {
+                  <p class="hint" id="repo-help">Repositories where you're an admin (needed to add a webhook).</p>
+                }
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="connector" aria-hidden="true"></div>
+
+        <section class="step" aria-labelledby="step-action">
+          <header class="step-head">
+            <span class="step-num accent" aria-hidden="true">2</span>
+            <div>
+              <h2 id="step-action">Action</h2>
+              <p class="hint">…do this.</p>
+            </div>
+          </header>
+
+          <div class="step-body">
+            <div class="field">
+              <span class="label">App</span>
+              <app-app-picker
+                [apps]="apps()"
+                step="action"
+                label="Action app"
+                [selected]="actionApp()"
+                (selectedChange)="actionApp.set($event)"
+              />
+            </div>
+
+            <div class="field">
+              <label for="action-type">Action</label>
+              <select id="action-type" class="select" disabled>
+                <option>{{ action()?.name ?? 'Comment on pull request' }}</option>
+              </select>
+              <p class="hint">{{ action()?.description }}</p>
+            </div>
+
+            <app-comment-editor
+              [control]="form.controls.body"
+              [value]="bodyValue()"
+              [fields]="fields()"
+              [submitted]="submitted()"
+              [serverError]="fieldErrors()['action.body'] ?? null"
+            />
+          </div>
+        </section>
+      </div>
+
+      <aside class="side">
+        <div class="panel">
+          <div class="field">
+            <label for="zap-name">Name</label>
+            <input
+              id="zap-name"
+              class="input"
+              formControlName="name"
+              placeholder="e.g. Thank PR authors"
+              [attr.aria-invalid]="submitted() && form.controls.name.invalid"
+              aria-describedby="name-error"
+            />
+            @if (submitted() && form.controls.name.invalid) {
+              <p class="error-text" id="name-error">Give the Zap a name (up to 100 characters).</p>
+            }
+          </div>
+
+          <div class="status-row">
+            <div>
+              <span class="label" id="enabled-label">Status</span>
+              <p class="hint">{{ form.controls.enabled.value ? 'On — comments on new PRs' : 'Off — saved, not running' }}</p>
+            </div>
+            <app-toggle
+              [checked]="form.controls.enabled.value"
+              label="Zap on or off"
+              (toggled)="form.controls.enabled.setValue($event); form.controls.enabled.markAsDirty()"
+            />
+          </div>
+
+          @if (saveError(); as message) {
+            <p class="banner banner-error" role="alert">{{ message }}</p>
+          }
+          @if (savedNotice(); as message) {
+            <p class="banner banner-ok" role="status">{{ message }}</p>
+          }
+
+          <button type="submit" class="btn btn-primary save" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : isNew() ? (form.controls.enabled.value ? 'Create and turn on' : 'Create Zap') : 'Save changes' }}
+          </button>
+
+          @if (!isNew()) {
+            @if (confirmingDelete()) {
+              <div class="confirm" role="group" aria-label="Confirm delete">
+                <span>Delete this Zap and its run history?</span>
+                <button type="button" class="btn btn-danger" (click)="delete()" [disabled]="saving()">Delete</button>
+                <button type="button" class="btn btn-quiet" (click)="confirmingDelete.set(false)">Cancel</button>
+              </div>
+            } @else {
+              <button type="button" class="btn btn-quiet btn-danger" (click)="askDelete()">Delete Zap</button>
+            }
+          }
+        </div>
+
+        @if (id(); as zapId) {
+          <app-run-history class="panel" [zapId]="zapId" />
+        }
+      </aside>
+    </form>
+  }
+}
