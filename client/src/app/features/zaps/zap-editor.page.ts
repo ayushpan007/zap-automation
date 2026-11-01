@@ -4,13 +4,14 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { catchError, finalize, forkJoin, of } from 'rxjs';
 import { apiErrorMessage, apiFieldErrors } from '../../core/api-error';
-import type { AppDef, Repo, Zap, ZapInput } from '../../core/api.types';
+import type { AppDef, Repo, Zap, ZapDraft, ZapInput } from '../../core/api.types';
 import { ZapsApi } from '../../core/zaps.api';
 import { knownTokensValidator } from '../../shared/template';
 import { Toggle } from '../../shared/toggle';
 import { AppPicker } from './app-picker';
 import { CommentEditor } from './comment-editor';
 import { RunHistory } from './run-history';
+import { draftFromState } from './zap-draft';
 
 const DEFAULT_COMMENT = 'Thanks @{{pr.author}} for opening "{{pr.title}}"! A maintainer will review it soon.';
 
@@ -44,6 +45,11 @@ export class ZapEditorPage implements OnInit {
   protected readonly fieldErrors = signal<Record<string, string>>({});
   protected readonly savedNotice = signal<string | null>(null);
   protected readonly confirmingDelete = signal(false);
+  /**
+   * A Copilot draft passed in router state. Read during construction, while this component's
+   * navigation is still the current one; afterwards currentNavigation() is null.
+   */
+  protected readonly draft = draftFromState(this.router.currentNavigation()?.extras.state);
   /** The Zap's saved repo; plain field because only withCurrentRepo reads it. */
   private currentRepo: Repo | null = null;
 
@@ -79,6 +85,7 @@ export class ZapEditorPage implements OnInit {
         next: ({ apps, zap }) => {
           this.apps.set(apps);
           if (zap) this.fillForm(zap);
+          else if (this.draft) this.applyDraft(this.draft);
           // Field list just arrived; re-run the token validator against it.
           this.form.controls.body.updateValueAndValidity();
           this.loadState.set('ready');
@@ -182,6 +189,15 @@ export class ZapEditorPage implements OnInit {
       trigger: { app: 'github', event: 'pull_request.opened', repo: { id: repo.id, fullName: repo.fullName } },
       action: { app: 'github', type: 'pull_request.comment', body: v.body },
     };
+  }
+
+  /** Pre-fills the form but never saves: the user reviews, picks a repo if needed, and saves it off. */
+  private applyDraft(draft: ZapDraft): void {
+    this.form.patchValue({ name: draft.name, body: draft.body, enabled: false, repoId: draft.repo?.id ?? null });
+    if (draft.repo) {
+      this.currentRepo = { ...draft.repo, private: false };
+      this.repos.update((repos) => this.withCurrentRepo(repos));
+    }
   }
 
   private fillForm(zap: Zap): void {

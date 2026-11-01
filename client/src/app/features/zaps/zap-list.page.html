@@ -6,6 +6,8 @@
   <a routerLink="/zaps/new" class="btn btn-primary">New Zap</a>
 </header>
 
+<app-copilot-box />
+
 @if (actionError(); as message) {
   <p class="banner banner-error" role="alert">{{ message }}</p>
 }

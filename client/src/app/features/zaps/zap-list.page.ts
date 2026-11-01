@@ -5,12 +5,13 @@ import type { Zap } from '../../core/api.types';
 import { ZapsApi } from '../../core/zaps.api';
 import { relativeTime, replaceById } from '../../shared/format';
 import { Toggle } from '../../shared/toggle';
+import { CopilotBox } from './copilot-box';
 
 type LoadState = 'loading' | 'ready' | 'error';
 
 @Component({
   selector: 'app-zap-list-page',
-  imports: [RouterLink, Toggle],
+  imports: [RouterLink, Toggle, CopilotBox],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './zap-list.page.html',
   styleUrl: './zap-list.page.css',

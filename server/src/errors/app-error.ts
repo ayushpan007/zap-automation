@@ -4,7 +4,8 @@ export type ErrorCode =
   | 'UNAUTHENTICATED'
   | 'FORBIDDEN'
   | 'NOT_FOUND'
-  | 'UPSTREAM_FAILED';
+  | 'UPSTREAM_FAILED'
+  | 'NOT_CONFIGURED';
 
 const statusByCode: Record<ErrorCode, number> = {
   BAD_REQUEST: 400,
@@ -13,6 +14,7 @@ const statusByCode: Record<ErrorCode, number> = {
   FORBIDDEN: 403,
   NOT_FOUND: 404,
   UPSTREAM_FAILED: 502,
+  NOT_CONFIGURED: 503,
 };
 
 /** An expected failure that maps to a specific HTTP response. Anything else becomes a 500. */

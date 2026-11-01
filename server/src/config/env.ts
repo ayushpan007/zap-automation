@@ -15,6 +15,8 @@ const envSchema = z.object({
   GITHUB_WEBHOOK_SECRET: z.string().min(16),
   JWT_SECRET: z.string().min(32),
   TOKEN_ENCRYPTION_KEY: base64Key32,
+  // Optional: enables the Copilot. Empty counts as unset.
+  ANTHROPIC_API_KEY: z.string().optional().transform((v) => v || undefined),
 });
 
 export type AppConfig = Readonly<{
@@ -26,6 +28,7 @@ export type AppConfig = Readonly<{
   github: Readonly<{ clientId: string; clientSecret: string; webhookSecret: string }>;
   jwtSecret: string;
   tokenEncryptionKey: Buffer;
+  anthropicApiKey: string | undefined;
 }>;
 
 /** Pure: turns a raw env object into typed config, or throws listing every invalid variable. */
@@ -49,5 +52,6 @@ export const parseConfig = (raw: NodeJS.ProcessEnv): AppConfig => {
     },
     jwtSecret: e.JWT_SECRET,
     tokenEncryptionKey: Buffer.from(e.TOKEN_ENCRYPTION_KEY, 'base64'),
+    anthropicApiKey: e.ANTHROPIC_API_KEY,
   };
 };

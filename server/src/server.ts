@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { createApp } from './app.js';
 import { parseConfig } from './config/env.js';
+import { createClaudeCopilot } from './modules/copilot/copilot.model.js';
 import { createGithubClient } from './modules/github/github.client.js';
 import { webhookUrl } from './modules/webhooks/repo-hook.service.js';
 
@@ -11,11 +12,13 @@ const main = async () => {
   await mongoose.syncIndexes(); // create the indexes declared on the schemas
 
   const github = createGithubClient({ clientId: config.github.clientId, clientSecret: config.github.clientSecret });
-  const app = createApp({ config, github });
+  const copilot = config.anthropicApiKey ? createClaudeCopilot(config.anthropicApiKey) : undefined;
+  const app = createApp({ config, github, copilot });
 
   const server = app.listen(config.port, () => {
     console.log(`[server] listening on http://localhost:${config.port}`);
     console.log(`[server] GitHub webhooks will be registered at ${webhookUrl(config.publicUrl)}`);
+    console.log(`[server] Copilot ${copilot ? 'enabled' : 'disabled (set ANTHROPIC_API_KEY to enable)'}`);
   });
 
   const shutdown = async (signal: string) => {

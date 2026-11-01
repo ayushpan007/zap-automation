@@ -5,6 +5,7 @@ import { createApp } from '../app.js';
 import type { AppConfig } from '../config/env.js';
 import { encryptSecret } from '../lib/crypto.js';
 import { SESSION_COOKIE, signSession } from '../modules/auth/session.js';
+import type { CopilotModel } from '../modules/copilot/copilot.model.js';
 import type { GithubClient } from '../modules/github/github.client.js';
 import { UserModel } from '../modules/users/user.model.js';
 
@@ -17,6 +18,7 @@ export const testConfig: AppConfig = {
   github: { clientId: 'cid', clientSecret: 'csecret', webhookSecret: 'test-webhook-secret-123456' },
   jwtSecret: 'test-jwt-secret-that-is-at-least-32-chars',
   tokenEncryptionKey: Buffer.alloc(32, 7),
+  anthropicApiKey: undefined,
 };
 
 export const TEST_REPO = { id: 101, fullName: 'octo/demo' } as const;
@@ -39,8 +41,8 @@ export const fakeGithub = () => {
   } satisfies GithubClient;
 };
 
-export const buildTestApp = (github: GithubClient = fakeGithub()) => {
-  const deps: AppDeps = { config: testConfig, github };
+export const buildTestApp = (github: GithubClient = fakeGithub(), copilot?: CopilotModel) => {
+  const deps: AppDeps = { config: testConfig, github, copilot };
   return { app: createApp(deps), deps, github };
 };
 

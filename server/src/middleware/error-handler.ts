@@ -1,13 +1,14 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { ZodError } from 'zod';
 import { AppError } from '../errors/app-error.js';
+import { GithubApiError } from '../modules/github/github.client.js';
 
 type ErrorBody = { error: { code: string; message: string; details?: unknown } };
 
 /** Pure: every error becomes the same response shape. Unknown errors never leak internals to clients. */
 export const toErrorResponse = (err: unknown): { status: number; body: ErrorBody } => {
   // GitHub failures carry the API path and response body in their message: log it, don't send it.
-  if (err instanceof AppError && err.code === 'UPSTREAM_FAILED') {
+  if (err instanceof GithubApiError) {
     return { status: err.status, body: { error: { code: err.code, message: 'GitHub request failed. Try again in a moment.' } } };
   }
   if (err instanceof AppError) {

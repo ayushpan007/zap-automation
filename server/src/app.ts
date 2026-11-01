@@ -7,6 +7,7 @@ import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { requireAuth } from './middleware/require-auth.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { catalogRouter } from './modules/catalog/catalog.routes.js';
+import { copilotRouter } from './modules/copilot/copilot.routes.js';
 import { githubRouter } from './modules/github/github.routes.js';
 import { meRouter } from './modules/users/me.routes.js';
 import { webhookRouter } from './modules/webhooks/webhook.routes.js';
@@ -19,6 +20,7 @@ import { zapRouter } from './modules/zaps/zap.routes.js';
  *   /auth/github, /auth/github/callback, /auth/logout   OAuth + session   (public)
  *   /webhooks/github                                    GitHub deliveries (HMAC-authenticated)
  *   /api/me, /api/apps, /api/github/repos, /api/zaps…   JSON API          (session required)
+ *   /api/copilot/draft                                  text → draft Zap  (session required)
  */
 export const createApp = (deps: AppDeps): Express => {
   const app = express();
@@ -46,6 +48,7 @@ export const createApp = (deps: AppDeps): Express => {
   api.use('/apps', catalogRouter());
   api.use('/github', githubRouter(deps));
   api.use('/zaps', zapRouter(deps));
+  api.use('/copilot', copilotRouter(deps));
   app.use('/api', api);
 
   app.use(notFoundHandler);

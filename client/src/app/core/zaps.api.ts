@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { map, type Observable } from 'rxjs';
-import type { AppDef, Repo, Run, Zap, ZapInput } from './api.types';
+import type { AppDef, Repo, Run, Zap, ZapDraft, ZapInput } from './api.types';
 
 /**
  * The only place that knows API URLs. Components ask for data by intent (list, save…),
@@ -35,5 +35,8 @@ export class ZapsApi {
   }
   repos(): Observable<Repo[]> {
     return this.http.get<{ repos: Repo[] }>('/api/github/repos').pipe(map((r) => r.repos));
+  }
+  draft(text: string): Observable<ZapDraft> {
+    return this.http.post<ZapDraft>('/api/copilot/draft', { text });
   }
 }
